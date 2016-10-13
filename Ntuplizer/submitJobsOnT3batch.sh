@@ -199,7 +199,9 @@ if test x"$SEOUTFILES" != x; then
           echo "WARNING: Cannot find output file $WORKDIR/$n. Ignoring it" >&2
        else
           #lcg-cp $srmdebug -b -D srmv2 file:$WORKDIR/$n $SERESULTDIR/$n
+          # gfal-copy $srmdebug file:$WORKDIR/$n $SERESULTDIR/$n
           gfal-copy $srmdebug file:$WORKDIR/$n $SERESULTDIR/$n
+          # xrdcp -d 1 $srmdebug file:$WORKDIR/$n $SERESULTDIR/$n
           if test $? -ne 0; then
              echo "ERROR: Failed to copy $WORKDIR/$n to $SERESULTDIR/$n" >&2
           fi

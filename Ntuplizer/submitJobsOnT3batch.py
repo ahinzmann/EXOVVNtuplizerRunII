@@ -186,9 +186,8 @@ def checkJobsOutputFromXML(xmlfile):
             
 #-----------------------------------------------------------------------------------------
 def getFileListDAS(dataset,instance="prod/global",run=-1):
-
-   cmd = './das_client.py --query="file dataset=%s instance=%s" --limit=10000' %(dataset,instance)
-   if run != -1: cmd = './das_client.py --query="file run=%i dataset=%s instance=%s" --limit=10000' %(run,dataset,instance)
+   cmd = 'source das_client && ./das_client.py --query="file dataset=%s instance=%s" --limit=10000' %(dataset,instance)
+   if run != -1: cmd = 'source das_client && ./das_client.py --query="file run=%i dataset=%s instance=%s" --limit=10000' %(run,dataset,instance)
    print cmd
    cmd_out = commands.getoutput( cmd )
    tmpList = cmd_out.split(os.linesep)
@@ -283,14 +282,14 @@ if opts.copyfiles:
      	b = a.split(" ")
      	status = os.path.exists(newdir + "/config/" + b[-1:][0].strip('\r'))
      	if status:
-	   cmd = "gfal-rm srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir + "/config/" + b[-1:][0].strip('\r'))
+	   cmd = "gfal-rm root://t3dcachedb03.psi.ch%s"%(newdir + "/config/" + b[-1:][0].strip('\r'))
 	   #print cmd
 	   os.system(cmd)
 
-   cmd = "lcg-cp -b -D srmv2 " + xmlfile + " srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir+"/config/"+os.path.basename(xmlfile))
+   cmd = "gfal-copy file:" + xmlfile + " root://t3dcachedb03.psi.ch%s"%(newdir+"/config/"+os.path.basename(xmlfile))
    print cmd  
    os.system(cmd)    
-   cmd = "lcg-cp -b -D srmv2 " + cmsswdir + "/src/" + cfg + " srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir+"/config/"+os.path.basename(cfg))
+   cmd = "gfal-copy file:" + cmsswdir + "/src/" + cfg + " root://t3dcachedb03.psi.ch%s"%(newdir+"/config/"+os.path.basename(cfg))
    print cmd  
    os.system(cmd)
    f = open(cmsswdir + "/src/" + cfg, 'r')
@@ -299,12 +298,12 @@ if opts.copyfiles:
       if l.find("ntuplizerOptions_MC_cfi") != -1: ismc = True
    f.close()
    if ismc:
-      cmd = "lcg-cp -b -D srmv2 python/ntuplizerOptions_MC_cfi.py srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir+"/config/ntuplizerOptions_MC_cfi.py")
+      cmd = "gfal-copy file:python/ntuplizerOptions_MC_cfi.py root://t3dcachedb03.psi.ch%s"%(newdir+"/config/ntuplizerOptions_MC_cfi.py")
    else:
-      cmd = "lcg-cp -b -D srmv2 python/ntuplizerOptions_data_cfi.py srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir+"/config/ntuplizerOptions_data_cfi.py")   
+      cmd = "gfal-copy file:python/ntuplizerOptions_data_cfi.py root://t3dcachedb03.psi.ch%s"%(newdir+"/config/ntuplizerOptions_data_cfi.py")   
    print cmd   
    os.system(cmd)
-   cmd = "lcg-cp -b -D srmv2 " + opts.config[0] + " srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir+"/config/"+os.path.basename(opts.config[0]))
+   cmd = "gfal-copy file:" + opts.config[0] + " root://t3dcachedb03.psi.ch%s"%(newdir+"/config/"+os.path.basename(opts.config[0]))
    print cmd
    os.system(cmd)
 
@@ -314,15 +313,19 @@ if opts.copyfiles:
     
    for j in jobsdir:
       jobid = j.rsplit("-",1)[1]
-      inputpath = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN="+j+"/"+outfile
+      # xrdcp -d 1 root://t3dcachedb.psi.ch:1094///pnfs/psi.ch/cms/
+      inputpath = "root://t3dcachedb03.psi.ch"+j+"/"+outfile
       outputpath = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN=%s"%(newdir+"/"+prefix+"_"+jobid+".root")
+      inputpath = "root://t3dcachedb.psi.ch:1094///"+j+"/"+outfile #TEST
+      outputpath = "root://t3dcachedb.psi.ch:1094///%s"%(newdir+"/"+prefix+"_"+jobid+".root -f") #TEST
       checkfile = "ls -l %s"%(newdir+"/"+prefix+"_"+jobid+".root") 
       status,cmd_out = commands.getstatusoutput(checkfile)
       if not(status): 
          cmd = "gfal-rm %s"%(outputpath)
-	 print cmd
-	 os.system(cmd)
+         print cmd
+         os.system(cmd)
       cmd = "gfal-copy %s %s" %(inputpath,outputpath)
+      cmd = "xrdcp -d 1  %s %s" %(inputpath,outputpath)#TEST
       print cmd
       os.system(cmd)
           	 
@@ -337,11 +340,11 @@ if opts.clean:
       if not(status):
          a = j.split("-")
          jobid = a[1]
-         inputpath = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN="+j+"/"+outfile
+         inputpath = "root://t3dcachedb03.psi.ch"+j+"/"+outfile
 	 cmd = "gfal-rm "+inputpath
 	 print cmd
 	 os.system(cmd)
-      jdir = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN="+j
+      jdir = "root://t3dcachedb03.psi.ch"+j
       cmd = "lcg-del -d %s" %jdir
       print cmd
       os.system(cmd)
@@ -352,7 +355,7 @@ if opts.clean:
    os.system(cmd)
    user = commands.getoutput("whoami")
    dir = '/pnfs/psi.ch/cms/trivcat/store/user/'+user+"/"+outdir
-   cmd = "lcg-del -d srm://t3se01.psi.ch:8443/srm/managerv2?SFN=" + dir
+   cmd = "lcg-del -d root://t3dcachedb03.psi.ch" + dir
    print cmd
    os.system(cmd)
       
