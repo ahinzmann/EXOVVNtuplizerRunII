@@ -147,14 +147,12 @@ if config["DOAK10TRIMMEDRECLUSTERING"]:
   process.ak10CHSJetsTrimmed = ak8PFJetsCHSTrimmed.clone( src = 'chs', jetPtMin = fatjet_ptmin, rParam = 1.0, rFilt = 0.2, trimPtFracMin = 0.05 )
 
 if reclusterPuppi:
-  process.load('CommonTools/PileupAlgos/Puppi_cff')
-  process.puppi.useExistingWeights = False
-  process.puppi.candName = cms.InputTag('packedPFCandidates')
-  process.puppi.vertexName = cms.InputTag('offlineSlimmedPrimaryVertices')  
-  process.ak8PuppiJets = ak8PFJetsCHS.clone( src = 'puppi', jetPtMin = fatjet_ptmin )
-  process.ak8PuppiJetsPruned = ak8PFJetsCHSPruned.clone( src = 'puppi', jetPtMin = fatjet_ptmin )
-  process.ak8PuppiJetsSoftDrop = ak8PFJetsCHSSoftDrop.clone( src = 'puppi', jetPtMin = fatjet_ptmin, beta = betapar  )
-  process.NjettinessAK8Puppi = process.NjettinessAK8.clone( src = 'ak8PuppiJets' )
+  process.out = cms.OutputModule("PoolOutputModule",
+      fileName = cms.untracked.string("testPuppiRecluster.root"),
+      outputCommands = cms.untracked.vstring('')
+   )
+  from JMEAnalysis.JetToolbox.jetToolbox_cff import *
+  jetToolbox( process, 'ak8', 'jetSequence', 'out', PUMethod='Puppi', JETCorrPayload = 'AK4PFPuppi', JETCorrLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3residual'], miniAOD=True, addPruning=True, addSoftDrop=True, addNsub=True, addSoftDropSubjets=True )
 
 if config["GETJECFROMDBFILE"]:
   process.load("CondCore.DBCommon.CondDBCommon_cfi")
@@ -476,55 +474,18 @@ if config["DOAK10TRIMMEDRECLUSTERING"]:
     recluster_addBtagging(process, 'ak8CHSJets', 'ak10CHSJetsTrimmed', genjets_name = lambda s: s.replace('CHS', 'Gen'), verbose = False, btagging = False, subjets = False)
     process.patJetsAk10CHSJetsTrimmed.userData.userFloats.src += ['ECFAK10:ecf1','ECFAK10:ecf2','ECFAK10:ecf3']
     
-################# Recluster puppi jets ######################
-if reclusterPuppi:
-    recluster_addBtagging(process, 'ak8PuppiJets', 'ak8PuppiJetsSoftDrop', jetcorr_label = 'AK8PFPuppi', genjets_name = lambda s: s.replace('Puppi', 'Gen'))
-    recluster_addBtagging(process, 'ak8PuppiJets', 'ak8PuppiJetsPruned', jetcorr_label = 'AK8PFPuppi', genjets_name = lambda s: s.replace('Puppi', 'Gen'))
-  
-    process.ak8PFJetsPuppiPrunedMass = cms.EDProducer("RecoJetDeltaRValueMapProducer",
-    					  src = cms.InputTag("ak8PuppiJets"),
-    					  matched = cms.InputTag("ak8PuppiJetsPruned"),
-    					  distMax = cms.double(0.8),
-    					  value = cms.string('mass')
-    					  )
-
-    process.ak8PFJetsPuppiSoftDropMass = cms.EDProducer("RecoJetDeltaRValueMapProducer",
-    					  src = cms.InputTag("ak8PuppiJets"),
-    					  matched = cms.InputTag("ak8PuppiJetsSoftDrop"),					  
-    					  distMax = cms.double(0.8),
-    					  value = cms.string('mass') 
-    					  )	    
-    process.ak8PFJetsPuppiPrunedMassCorrected = cms.EDProducer("RecoJetDeltaRValueMapProducer",
-    					  src = cms.InputTag("ak8PuppiJets"),
-    					  matched = cms.InputTag("patJetsAk8PuppiJetsPrunedPacked"),
-    					  distMax = cms.double(0.8),
-    					  value = cms.string('mass')
-    					  )
-
-    process.ak8PFJetsPuppiSoftDropMassCorrected = cms.EDProducer("RecoJetDeltaRValueMapProducer",
-    					  src = cms.InputTag("ak8PuppiJets"),
-    					  matched = cms.InputTag("patJetsAk8PuppiJetsSoftDropPacked"),					 
-    					  distMax = cms.double(0.8),
-    					  value = cms.string('mass') 
-    					  )	    
-
-    process.patJetsAk8PuppiJets.userData.userFloats.src += ['ak8PFJetsPuppiSoftDropMass','ak8PFJetsPuppiSoftDropMassCorrected']
-    #process.patJetsAk8PuppiJets.userData.userFloats.src += ['ak8PFJetsPuppiPrunedMass','ak8PFJetsPuppiPrunedMassCorrected']
-    process.patJetsAk8PuppiJets.userData.userFloats.src += ['NjettinessAK8Puppi:tau1','NjettinessAK8Puppi:tau2','NjettinessAK8Puppi:tau3']
-    process.patJetsAk8PuppiJets.addTagInfos = True
-
-    process.packedJetsAk8PuppiJets = cms.EDProducer("JetSubstructurePacker",
-            jetSrc = cms.InputTag("patJetsAk8PuppiJets"),
-            distMax = cms.double(0.8),
-            algoTags = cms.VInputTag(
-                cms.InputTag("patJetsAk8PuppiJetsSoftDropPacked")
-            ),
-            algoLabels = cms.vstring(
-                'SoftDropPuppi'
-                ),
-            fixDaughters = cms.bool(False),
-            packedPFCandidates = cms.InputTag("packedPFCandidates"),
-    )
+    #process.packedJetsAk8PuppiJets = cms.EDProducer("JetSubstructurePacker",
+    #        jetSrc = cms.InputTag("patJetsAk8PuppiJets"),
+    #        distMax = cms.double(0.8),
+    #        algoTags = cms.VInputTag(
+    #            cms.InputTag("patJetsAk8PuppiJetsSoftDropPacked")
+    #        ),
+    #        algoLabels = cms.vstring(
+    #            'SoftDropPuppi'
+    #            ),
+    #        fixDaughters = cms.bool(False),
+    #        packedPFCandidates = cms.InputTag("packedPFCandidates"),
+    #)
     
 # ###### Recluster MET ##########
 if config["DOMETRECLUSTERING"]:
@@ -656,7 +617,7 @@ if config["DOAK8PRUNEDRECLUSTERING"]:
 if config["DOAK10TRIMMEDRECLUSTERING"]:  
   jetsAK10trimmed = "patJetsAk10CHSJetsTrimmed"
 if reclusterPuppi:  
-  jetsAK8Puppi = "packedJetsAk8PuppiJets"  
+  jetsAK8Puppi = "selectedPatJetsAK8Puppi"  
 
 if config["DOTAUSBOOSTED"]:
   TAUS = "slimmedTaus"
